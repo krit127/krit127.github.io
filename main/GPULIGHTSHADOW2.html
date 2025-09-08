@@ -1,135 +1,128 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title>GPU Shadow</title>
+    <title>GPU Shadow PBR</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-        }
+        body { margin: 0; overflow: hidden; }
+        #gui-container { position: absolute; top: 0; right: 0; z-index: 10; }
     </style>
 </head>
-
 <body>
-    <!-- core three.js -->
+    <div id="gui-container"></div>
+    <!-- three.js core -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
     <script>
-
+        // Renderer
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true; // ✅ เปิดใช้งานเงา!
+        renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
         document.body.appendChild(renderer.domElement);
 
+        // Scene
         const scene = new THREE.Scene();
 
-        // ✅ กล้อง
-        const camera = new THREE.PerspectiveCamera(
-            75,
-            window.innerWidth / window.innerHeight,
-            0.1,
-            1000
-        );
+        // Camera & Controls
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 2, 5);
         camera.lookAt(0, 0, 0);
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-        
-        // ✅ Directional Light ที่สร้างเงา
+        // Lights (with GUI controls)
+        const lightParams = {
+            dir: { x: 10, y: 5, z: 10 },
+            point: { x: 0, y: 3, z: 1 },
+            spotR: { x: 3, y: 0, z: -2 },
+            spotG: { x: -3, y: 0, z: -2 },
+            spotB: { x: 0, y: 0, z: 3 }
+        };
+
+        // Directional Light
         const DirectionalLight = new THREE.DirectionalLight(0xfffffe, 1);
-        DirectionalLight.position.set(10, 5, 10);
+        DirectionalLight.position.set(lightParams.dir.x, lightParams.dir.y, lightParams.dir.z);
         DirectionalLight.castShadow = true;
         scene.add(DirectionalLight);
 
-        const pointLight = new THREE.PointLight(0xffffff, 0.8, 8);
-        pointLight.position.set(0, 3, 1);
-        pointLight.castShadow = true;
-        scene.add(pointLight);
         
-        const spotLightR = new THREE.SpotLight(0xff0000, 1);
-        spotLightR.angle = Math.PI / 8;
-        spotLightR.position.set(3, 0, -2);
-        spotLightR.target.position.set(3, 0, -2);
-        spotLightR.castShadow = true;
-        spotLightR.distance = 5;
-        scene.add(spotLightR);
-        scene.add(spotLightR.target);
 
-        const spotLightG = new THREE.SpotLight(0x00ff00, 1);
-        spotLightG.angle = Math.PI / 8; 
-        spotLightG.position.set(-3, 0, -2);
-        spotLightG.target.position.set(-3, 0, -2);
-        spotLightG.castShadow = true;
-        spotLightG.distance = 5;
-        scene.add(spotLightG);
-        scene.add(spotLightG.target);
-
-        const spotLightB = new THREE.SpotLight(0x0000ff, 1);
-        spotLightB.angle = Math.PI / 8; 
-        spotLightB.position.set(0, 0, 3);
-        spotLightB.target.position.set(0, 0, 3);
-        spotLightB.castShadow = true;
-        spotLightB.distance = 5;
-        scene.add(spotLightB);
-        scene.add(spotLightB.target);
-
-
-        // ✅ พื้น
+        // Plane (PBR)
         const planeGeometry = new THREE.PlaneGeometry(10, 10);
-        const planeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const planeMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            metalness: 0.1,
+            roughness: 0.5,
+            clearcoat: 0.2,
+            clearcoatRoughness: 0.1
+        });
         const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-        plane.rotation.x = -Math.PI / 2; // หมุนให้เป็นพื้น
+        plane.rotation.x = -Math.PI / 2;
         plane.position.y = 0;
-        plane.receiveShadow = true; // ✅ พื้นรับเงา
+        plane.receiveShadow = true;
         scene.add(plane);
 
+        // Load OBJ models (PBR)
         const loader = new THREE.OBJLoader();
-        loader.load('https://sibsansuk.github.io/chair.obj', function (object) {
-            object.castShadow = true; // ✅ วัตถุนี้สร้างเงา
-            // ตั้งค่า castShadow กับทุก mesh ใน object
+        loader.load('https://krit127.github.io/CG/model/model1.obj', function (object) {
             object.traverse(function (child) {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
+                    child.material = new THREE.MeshPhysicalMaterial({
+                        color: 0xcccccc,
+                        metalness: 0.3,
+                        roughness: 0.4,
+                        clearcoat: 0.3,
+                        clearcoatRoughness: 0.2
+                    });
                 }
             });
             scene.add(object);
-        }, undefined, function (error) {
-            console.error('Error loading OBJ:', error);
         });
-        loader.load('https://sibsansuk.github.io/myModel.obj', function (object) {
-            object.castShadow = true; // ✅ วัตถุนี้สร้างเงา
-            // ตั้งค่า castShadow กับทุก mesh ใน object
-            object.traverse(function (child) {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
+        loader.load('https://krit127.github.io/CG/model/buliding.obj', function (object) {
             object.position.set(0, 0, 2);
+            object.traverse(function (child) {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    child.material = new THREE.MeshPhysicalMaterial({
+                        color: 0x8888ff,
+                        metalness: 0.7,
+                        roughness: 0.2,
+                        clearcoat: 0.5,
+                        clearcoatRoughness: 0.1
+                    });
+                }
+            });
             scene.add(object);
-        }, undefined, function (error) {
-            console.error('Error loading OBJ:', error);
         });
 
-        // ✅ render loop
-        function animate(t) {
+        // dat.GUI for light position
+        const gui = new dat.GUI({ autoPlace: false });
+        document.getElementById('gui-container').appendChild(gui.domElement);
 
+        const dirFolder = gui.addFolder('Directional Light');
+        dirFolder.add(lightParams.dir, 'x', -20, 20).onChange(v => DirectionalLight.position.x = v);
+        dirFolder.add(lightParams.dir, 'y', 0, 20).onChange(v => DirectionalLight.position.y = v);
+        dirFolder.add(lightParams.dir, 'z', -20, 20).onChange(v => DirectionalLight.position.z = v);
+        dirFolder.open();
+
+        
+
+        // Render loop
+        function animate() {
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
         }
-        animate(0);
+        animate();
 
-        window.addEventListener('keydown', (event) => {
-
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         });
-
     </script>
 </body>
-
 </html>
