@@ -156,78 +156,79 @@ exrLoader.load(
 
         // โหลดโมเดล
         const loader = new THREE.GLTFLoader();
-       let aircraft, building;
-;
+let aircraft, building;
 
-        function loadModel(url, position, isAircraft = false, scale) {
-            loader.load(url, gltf=>{
-                const obj = gltf.scene;
-                obj.traverse(child=>{
-                    if(child.isMesh){
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
-
-                    obj.position.copy(position);
-                    // Apply the scale here
-                    obj.scale.set(scale, scale, scale);
-                    scene.add(obj);
-
-                        if(isAircraft) aircraft = obj;
-                        else building = obj;
-                        console.log(`✅ โหลดโมเดล: ${url}`);
-             }, undefined, err=>console.error("❌ โหลดโมเดลไม่ได้", err));
-
-        }
-
-        // Call the loadModel function with the new scale parameter
-        loadModel("https://krit127.github.io/models/aircraft.glb", new THREE.Vector3(0,0,0), 1, true); // เครื่องบินควบคุม
-        loadModel("https://krit127.github.io/models/building.glb", new THREE.Vector3(5,0,-5), 1.2);        // อาคารสถิติ
-
-
-        // UI Controls
-        const intensityInput = document.getElementById('light-intensity');
-        intensityInput.addEventListener('input', e => {
-            directionalLight.intensity = parseFloat(e.target.value);
-        });
-
-        const colorInput = document.getElementById('light-color');
-        colorInput.addEventListener('input', e => {
-            directionalLight.color.set(e.target.value);
-        });
-
-        const toggleShadowsButton = document.getElementById('toggle-shadows');
-        toggleShadowsButton.addEventListener('click', () => {
-            renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
-            scene.traverse(child => {
-                if (child.isMesh) {
-                    child.castShadow = renderer.shadowMap.enabled;
-                    child.receiveShadow = renderer.shadowMap.enabled;
-                }
-            });
-            console.log(`💡 เงา: ${renderer.shadowMap.enabled ? 'เปิด' : 'ปิด'}`);
-        });
-
-        // Event listener for keyboard controls
-        window.addEventListener('keydown', e => {
-            const step = 1;
-            if (robotModel) {
-                switch (e.key) {
-                    case "w": robotModel.position.z -= step; break;
-                    case "s": robotModel.position.z += step; break;
-                    case "a": robotModel.position.x -= step; break;
-                    case "d": robotModel.position.x += step; break;
-                }
+function loadModel(url, position, scale = 1, isAircraft = false) {
+    loader.load(url, gltf => {
+        const obj = gltf.scene;
+        obj.traverse(child => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
             }
         });
+        obj.position.copy(position);
+        obj.scale.set(scale, scale, scale);
+        scene.add(obj);
 
-        // Render
-        function animate() {
-            renderer.render(scene, camera);
-            requestAnimationFrame(animate);
+        if(isAircraft) aircraft = obj;
+        else building = obj;
+
+        console.log(`✅ โหลดโมเดล: ${url}`);
+    }, undefined, err => console.error("❌ โหลดโมเดลไม่ได้", err));
+}
+
+        // Call the loadModel function with the new scale parameter
+        loadModel("https://krit127.github.io/CG/model/supermarine_spitfire.glb", new THREE.Vector3(0,0,0), 1, true); // เครื่องบินควบคุม
+        loadModel("https://krit127.github.io/CG/model/small_warehouse.glb", new THREE.Vector3(5,0,-5), 1.2);        // อาคารสถิติ
+
+
+        // UI controls
+document.getElementById('light-intensity').addEventListener('input', e=>{
+    directionalLight.intensity = parseFloat(e.target.value);
+});
+document.getElementById('light-color').addEventListener('input', e=>{
+    directionalLight.color.set(e.target.value);
+});
+document.getElementById('toggle-shadows').addEventListener('click', ()=>{
+    renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
+    scene.traverse(c=>{
+        if(c.isMesh){
+            c.castShadow = renderer.shadowMap.enabled;
+            c.receiveShadow = renderer.shadowMap.enabled;
         }
-        animate();
-    </script>
+    });
+});
+
+// Keyboard movement (WASD)
+const keys = {};
+window.addEventListener('keydown', e=> keys[e.key.toLowerCase()] = true);
+window.addEventListener('keyup', e=> keys[e.key.toLowerCase()] = false);
+
+function moveAircraft(){
+    if(!aircraft) return;
+    const speed = 0.2;
+    if(keys['w']) aircraft.position.z -= speed;
+    if(keys['s']) aircraft.position.z += speed;
+    if(keys['a']) aircraft.position.x -= speed;
+    if(keys['d']) aircraft.position.x += speed;
+}
+
+// Render loop
+function animate(){
+    requestAnimationFrame(animate);
+    moveAircraft();
+    controls.update();
+    renderer.render(scene, camera);
+}
+animate();
+
+// Resize
+window.addEventListener('resize', ()=>{
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
 </body>
 </html>
