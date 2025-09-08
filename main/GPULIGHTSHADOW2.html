@@ -41,7 +41,7 @@
         };
 
         // Directional Light
-        const DirectionalLight = new THREE.DirectionalLight(0xfffffe, 1);
+        const DirectionalLight = new THREE.DirectionalLight(0xfffffe, 100);
         DirectionalLight.position.set(lightParams.dir.x, lightParams.dir.y, lightParams.dir.z);
         DirectionalLight.castShadow = true;
         scene.add(DirectionalLight);
