@@ -3,13 +3,7 @@
 <head>
     <title>PBR Shader with UI</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-            color: #fff;
-        }
-
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: #fff; }
         #ui-container {
             position: absolute;
             top: 10px;
@@ -21,40 +15,11 @@
             flex-direction: column;
             gap: 10px;
         }
-
-        .ui-section {
-            border: 1px solid #444;
-            padding: 10px;
-            border-radius: 5px;
-        }
-
-        .ui-section h3 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-
-        .ui-button {
-            background-color: #555;
-            border: none;
-            color: white;
-            padding: 5px 10px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-            margin: 2px;
-            cursor: pointer;
-            border-radius: 3px;
-        }
-
-        .ui-button:hover {
-            background-color: #777;
-        }
-
-        input[type="range"] {
-            width: 150px;
-        }
+        .ui-section { border: 1px solid #444; padding: 10px; border-radius: 5px; }
+        .ui-section h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; }
+        .ui-button { background-color: #555; border: none; color: white; padding: 5px 10px; text-align: center; text-decoration: none; display: inline-block; font-size: 14px; margin: 2px; cursor: pointer; border-radius: 3px; }
+        .ui-button:hover { background-color: #777; }
+        input[type="range"] { width: 150px; }
     </style>
 </head>
 <body>
@@ -62,24 +27,37 @@
         <div class="ui-section">
             <h3>ควบคุมแสง</h3>
             <label>ความสว่าง:</label>
-            <input type="range" id="light-intensity" min="0" max="5" step="0.1" value="2">
-            <br>
+            <input type="range" id="light-intensity" min="0" max="5" step="0.1" value="2"><br>
             <label>สีแสง:</label>
             <input type="color" id="light-color" value="#ffffff">
+        </div>
+        <div class="ui-section">
+            <h3>ตำแหน่งแสง</h3> <!-- 🔹เพิ่มส่วนนี้ -->
+            <label>X:</label><input type="range" id="light-x" min="-50" max="50" step="0.1" value="10"><br>
+            <label>Y:</label><input type="range" id="light-y" min="0" max="50" step="0.1" value="20"><br>
+            <label>Z:</label><input type="range" id="light-z" min="-50" max="50" step="0.1" value="10">
         </div>
         <div class="ui-section">
             <h3>เงา</h3>
             <button id="toggle-shadows" class="ui-button">เปิด/ปิดเงา</button>
         </div>
         <div class="ui-section">
-            <h3>ควบคุมหุ่นยนต์</h3>
-            <p>ใช้ปุ่ม WASD</p>
+            <h3>ควบคุม MODEL</h3>
+            <p>ใช้ปุ่ม WASD + Arrow Up/Down </p>
         </div>
+         <div class="ui-section">
+        <h3>Material</h3>
+        <label>Metallic:</label>
+        <input type="range" id="aircraft-metal" min="0" max="1" step="0.01" value="0.5"><br>
+        <label>Roughness:</label>
+        <input type="range" id="aircraft-rough" min="0" max="1" step="0.01" value="0.5">
+    </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script> <!-- 🔹เพิ่ม TransformControls -->
     <script>
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -89,54 +67,48 @@
 
         const scene = new THREE.Scene();
 
- const exrLoader = new THREE.EXRLoader();
-exrLoader.load(
-    "https://krit127.github.io/textures/qwantani_noon_puresky_1k.exr",
-    function(texture){
-        texture.mapping = THREE.EquirectangularReflectionMapping;
-        scene.background = texture;
-        scene.environment = texture;
-        console.log("✅ EXR HDR โหลดเสร็จ");
-    },
-    undefined,
-    function(err){
-        console.error("❌ โหลด EXR ไม่ได้", err);
-    }
-);
+        const exrLoader = new THREE.EXRLoader();
+        exrLoader.load(
+            "https://krit127.github.io/textures/qwantani_noon_puresky_1k.exr",
+            texture => {
+                texture.mapping = THREE.EquirectangularReflectionMapping;
+                scene.background = texture;
+                scene.environment = texture;
+                console.log("✅ EXR HDR โหลดเสร็จ");
+            },
+            undefined,
+            err => console.error("❌ โหลด EXR ไม่ได้", err)
+        );
 
-    
-
-        // กล้อง
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         camera.position.set(0, 15, 25);
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-        // แสง
         const ambientLight = new THREE.AmbientLight(0x555555);
         scene.add(ambientLight);
 
         const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
-        directionalLight.position.set(10, 20, 10); // ยกไฟให้สูงขึ้นเพื่อเงาจะตกลงพื้นกว้างขึ้น
+        directionalLight.position.set(10,20,10);
         directionalLight.castShadow = true;
-
-        // ปรับคุณภาพเงาให้คมขึ้น
         directionalLight.shadow.mapSize.width = 2048;
         directionalLight.shadow.mapSize.height = 2048;
-
-        // ขยายขอบเขตการฉายเงา (สำคัญมาก)
         directionalLight.shadow.camera.near = 0.5;
-        directionalLight.shadow.camera.far = 200; // ให้ไกลพอ
+        directionalLight.shadow.camera.far = 200;
         directionalLight.shadow.camera.left = -100;
         directionalLight.shadow.camera.right = 100;
         directionalLight.shadow.camera.top = 100;
         directionalLight.shadow.camera.bottom = -100;
-
-        // เปิด bias ปรับให้เงาไม่ซ้อน
         directionalLight.shadow.bias = -0.0005;
-
         scene.add(directionalLight);
 
-        // พื้น
+        // 🔹 Light Helper + TransformControls
+        const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 2, 0xffff00);
+        scene.add(lightHelper);
+        const transformControls = new THREE.TransformControls(camera, renderer.domElement);
+        transformControls.attach(directionalLight);
+        scene.add(transformControls);
+        transformControls.addEventListener('dragging-changed', event => { controls.enabled = !event.value; });
+
         const texture = new THREE.TextureLoader().load(
             "https://krit127.github.io/textures/brick_crosswalk_diff_1k.jpg",
             () => console.log("✅ Texture โหลดเสร็จ"),
@@ -145,90 +117,91 @@ exrLoader.load(
         );
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(5, 5);
-
+        texture.repeat.set(5,5);
         const floorMaterial = new THREE.MeshStandardMaterial({ map: texture });
-        const floorGeom = new THREE.PlaneGeometry(100, 100);
-        const floorMesh = new THREE.Mesh(floorGeom, floorMaterial);
-        floorMesh.rotation.x = -Math.PI / 2;
+        const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(100,100), floorMaterial);
+        floorMesh.rotation.x = -Math.PI/2;
         floorMesh.receiveShadow = true;
         scene.add(floorMesh);
 
         // โหลดโมเดล
         const loader = new THREE.GLTFLoader();
-let aircraft, building;
+        let aircraft, building;
 
-function loadModel(url, position, scale = 1, isAircraft = false) {
-    loader.load(url, gltf => {
-        const obj = gltf.scene;
-        obj.traverse(child => {
-            if (child.isMesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-            }
-        });
-        obj.position.copy(position);
-        obj.scale.set(scale, scale, scale);
-        scene.add(obj);
-
-        if(isAircraft) aircraft = obj;
-        else building = obj;
-
-        console.log(`✅ โหลดโมเดล: ${url}`);
-    }, undefined, err => console.error("❌ โหลดโมเดลไม่ได้", err));
-}
-
-        // Call the loadModel function with the new scale parameter
-        loadModel("https://krit127.github.io/CG/model/supermarine_spitfire.glb", new THREE.Vector3(0,0,0), 1, true); // เครื่องบินควบคุม
-        loadModel("https://krit127.github.io/CG/model/small_warehouse.glb", new THREE.Vector3(5,0,-5), 1.2);        // อาคารสถิติ
-
-
-        // UI controls
-document.getElementById('light-intensity').addEventListener('input', e=>{
-    directionalLight.intensity = parseFloat(e.target.value);
-});
-document.getElementById('light-color').addEventListener('input', e=>{
-    directionalLight.color.set(e.target.value);
-});
-document.getElementById('toggle-shadows').addEventListener('click', ()=>{
-    renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
-    scene.traverse(c=>{
-        if(c.isMesh){
-            c.castShadow = renderer.shadowMap.enabled;
-            c.receiveShadow = renderer.shadowMap.enabled;
+        function loadModel(url, position, scale=1, isAircraft=false) {
+            loader.load(url, gltf => {
+                const obj = gltf.scene;
+                obj.traverse(child => { if(child.isMesh){ child.castShadow = true; child.receiveShadow = true; }});
+                obj.position.copy(position);
+                obj.scale.set(scale,scale,scale);
+                scene.add(obj);
+                if(isAircraft) aircraft = obj; else building = obj;
+                console.log(`✅ โหลดโมเดล: ${url}`);
+            }, undefined, err => console.error("❌ โหลดโมเดลไม่ได้", err));
         }
-    });
-});
 
-// Keyboard movement (WASD)
-const keys = {};
-window.addEventListener('keydown', e=> keys[e.key.toLowerCase()] = true);
-window.addEventListener('keyup', e=> keys[e.key.toLowerCase()] = false);
+        // 🔹 โหลดโมเดลสองตัว
+        loadModel("https://krit127.github.io/CG/model/supermarine_spitfire.glb", new THREE.Vector3(0,0,0), 0.05, true);
+        loadModel("https://krit127.github.io/CG/model/small_warehouse.glb", new THREE.Vector3(5,0,-5), 1.2);
 
-function moveAircraft(){
-    if(!aircraft) return;
-    const speed = 0.2;
-    if(keys['w']) aircraft.position.z -= speed;
-    if(keys['s']) aircraft.position.z += speed;
-    if(keys['a']) aircraft.position.x -= speed;
-    if(keys['d']) aircraft.position.x += speed;
-}
+        // UI Controls
+        document.getElementById('light-intensity').addEventListener('input', e => directionalLight.intensity = parseFloat(e.target.value));
+        document.getElementById('light-color').addEventListener('input', e => directionalLight.color.set(e.target.value));
+        document.getElementById('toggle-shadows').addEventListener('click', ()=>{
+            renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
+            scene.traverse(c => { if(c.isMesh){ c.castShadow = renderer.shadowMap.enabled; c.receiveShadow = renderer.shadowMap.enabled;}});
+        });
 
-// Render loop
-function animate(){
-    requestAnimationFrame(animate);
-    moveAircraft();
-    controls.update();
-    renderer.render(scene, camera);
-}
-animate();
+        // 🔹 Light position sliders
+        const lightX = document.getElementById('light-x');
+        const lightY = document.getElementById('light-y');
+        const lightZ = document.getElementById('light-z');
+        function updateLightPosition(){ directionalLight.position.set(parseFloat(lightX.value), parseFloat(lightY.value), parseFloat(lightZ.value)); }
+        lightX.addEventListener('input', updateLightPosition);
+        lightY.addEventListener('input', updateLightPosition);
+        lightZ.addEventListener('input', updateLightPosition);
 
-// Resize
-window.addEventListener('resize', ()=>{
-    camera.aspect = window.innerWidth/window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
-</script>
+        // Aircraft Material sliders
+        const metalSlider = document.getElementById('aircraft-metal');
+        const roughSlider = document.getElementById('aircraft-rough');
+        function updateAircraftMaterial(){
+            if(!aircraft) return;
+            aircraft.traverse(c=>{ if(c.isMesh && c.material){ c.material.metalness=parseFloat(metalSlider.value); c.material.roughness=parseFloat(roughSlider.value); } });
+        }
+            metalSlider.addEventListener('input', updateAircraftMaterial);  
+            roughSlider.addEventListener('input', updateAircraftMaterial);
+
+        // Keyboard movement (WASD + Arrow Up/Down)
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        function moveAircraft(){
+            if(!aircraft) return;
+            const speed = 0.2;
+            if(keys['w']) aircraft.position.z -= speed;
+            if(keys['s']) aircraft.position.z += speed;
+            if(keys['a']) aircraft.position.x -= speed;
+            if(keys['d']) aircraft.position.x += speed;
+            if(keys['arrowup']) aircraft.position.y += speed;
+            if(keys['arrowdown']) aircraft.position.y -= speed;
+            if(aircraft.position.y < 0) aircraft.position.y = 0;
+        }
+
+        function animate(){
+            requestAnimationFrame(animate);
+            moveAircraft();
+            controls.update();
+            transformControls.update();
+            renderer.render(scene,camera);
+        }
+        animate();
+
+        window.addEventListener('resize', ()=>{
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
 </html>
