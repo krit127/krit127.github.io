@@ -138,7 +138,7 @@ exrLoader.load(
 
         // พื้น
         const texture = new THREE.TextureLoader().load(
-            "https://krit127.github.io/textures/qwantani_noon_puresky_1k.exr",
+            "https://krit127.github.io/textures/brick_crosswalk_diff_1k.jpg",
             () => console.log("✅ Texture โหลดเสร็จ"),
             undefined,
             err => console.error("❌ โหลด texture ไม่ได้", err)
@@ -156,37 +156,35 @@ exrLoader.load(
 
         // โหลดโมเดล
         const loader = new THREE.GLTFLoader();
-        let robotModel;
+       let aircraft, building;
+;
 
-        function loadModel(url, position, isRobot = false, scale) {
-            loader.load(
-                url,
-                gltf => {
-                    const obj = gltf.scene;
-                    obj.traverse(child => {
-                        if (child.isMesh) {
-                            child.castShadow = true;
-                            child.receiveShadow = true;
-                        }
-                    });
+        function loadModel(url, position, isAircraft = false, scale) {
+            loader.load(url, gltf=>{
+                const obj = gltf.scene;
+                obj.traverse(child=>{
+                    if(child.isMesh){
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+
                     obj.position.copy(position);
                     // Apply the scale here
                     obj.scale.set(scale, scale, scale);
                     scene.add(obj);
 
-                    if (isRobot) {
-                        robotModel = obj;
-                        console.log("✅ โหลดโมเดลหุ่นยนต์สำเร็จ");
-                    }
-                    console.log(`✅ โหลดโมเดล: ${url}`);
-                },
-                undefined,
-                err => console.error(`❌ โหลดโมเดลไม่ได้: ${url}`, err)
-            );
+                        if(isAircraft) aircraft = obj;
+                        else building = obj;
+                        console.log(`✅ โหลดโมเดล: ${url}`);
+             }, undefined, err=>console.error("❌ โหลดโมเดลไม่ได้", err));
+
         }
 
         // Call the loadModel function with the new scale parameter
-       
+        loadModel("https://krit127.github.io/models/aircraft.glb", new THREE.Vector3(0,0,0), 1, true); // เครื่องบินควบคุม
+        loadModel("https://krit127.github.io/models/building.glb", new THREE.Vector3(5,0,-5), 1.2);        // อาคารสถิติ
+
 
         // UI Controls
         const intensityInput = document.getElementById('light-intensity');
