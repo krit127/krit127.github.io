@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8" />
+    <title>Portfolio + Picking</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; color: #fff; }
+        #ui-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .ui-section { border: 1px solid #444; padding: 10px; border-radius: 5px; }
+        .ui-section h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; }
+        .ui-button { background-color: #555; border: none; color: white; padding: 5px 10px; cursor: pointer; border-radius: 3px; }
+        .ui-button:hover { background-color: #777; }
+        input[type="range"] { width: 150px; }
+    </style>
+</head>
+<body>
+    <div id="ui-container">
+        <div class="ui-section">
+            <h3>ควบคุมแสง</h3>
+            <label>ความสว่าง:</label>
+            <input type="range" id="light-intensity" min="0" max="5" step="0.1" value="2"><br>
+            <label>สีแสง:</label>
+            <input type="color" id="light-color" value="#ffffff">
+        </div>
+        <div class="ui-section">
+            <h3>ตำแหน่งแสง</h3>
+            <label>X:</label><input type="range" id="light-x" min="-50" max="50" step="0.1" value="10"><br>
+            <label>Y:</label><input type="range" id="light-y" min="0" max="50" step="0.1" value="20"><br>
+            <label>Z:</label><input type="range" id="light-z" min="-50" max="50" step="0.1" value="10">
+        </div>
+        <div class="ui-section">
+            <h3>เงา</h3>
+            <button id="toggle-shadows" class="ui-button">เปิด/ปิดเงา</button>
+        </div>
+        <div class="ui-section">
+            <h3>ควบคุม MODEL</h3>
+            <p>ใช้ปุ่ม WASD + Arrow Up/Down</p>
+        </div>
+        <div class="ui-section">
+            <h3>Material</h3>
+            <label>Metallic:</label>
+            <input type="range" id="aircraft-metal" min="0" max="1" step="0.01" value="0.5"><br>
+            <label>Roughness:</label>
+            <input type="range" id="aircraft-rough" min="0" max="1" step="0.01" value="0.5">
+        </div>
+    </div>
+    <!-- Three.js libs -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    <script>
+        // --- Renderer / Scene / Camera ---
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 15, 25);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        // --- Environment ---
+        const exrLoader = new THREE.EXRLoader();
+        exrLoader.load(
+            "https://krit127.github.io/textures/qwantani_noon_puresky_1k.exr",
+            tex => {
+                tex.mapping = THREE.EquirectangularReflectionMapping;
+                scene.background = tex;
+                scene.environment = tex;
+            }
+        );
+
+        // --- Lights ---
+        const ambientLight = new THREE.AmbientLight(0x555555);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+        directionalLight.position.set(10,20,10);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // Light Helper
+        const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 2, 0xffff00);
+        scene.add(lightHelper);
+
+        const transformControls = new THREE.TransformControls(camera, renderer.domElement);
+        transformControls.attach(directionalLight);
+        scene.add(transformControls);
+        transformControls.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
+
+        // --- Floor ---
+        const tex = new THREE.TextureLoader().load("https://krit127.github.io/textures/brick_crosswalk_diff_1k.jpg");
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(5,5);
+        const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(100,100), new THREE.MeshStandardMaterial({ map: tex }));
+        floorMesh.rotation.x = -Math.PI/2;
+        floorMesh.receiveShadow = true;
+        scene.add(floorMesh);
+
+        // --- Models ---
+        const loader = new THREE.GLTFLoader();
+        let aircraft, building;
+        const clickable = []; // สำหรับ Picking
+
+        function loadModel(url, pos, scale=1, isAircraft=false) {
+            loader.load(url, gltf=>{
+                const obj = gltf.scene;
+                obj.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }});
+                obj.position.copy(pos);
+                obj.scale.set(scale,scale,scale);
+                scene.add(obj);
+                clickable.push(obj);
+                if(isAircraft) aircraft=obj; else building=obj;
+            });
+        }
+
+        loadModel("https://krit127.github.io/CG/model/3d_computer__-_sketchfab_weekly_-_11_mar23.glb", new THREE.Vector3(0,0,0), 0.05, true);
+        loadModel("https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf", new THREE.Vector3(5,0,-5), 1.2);
+
+        // --- UI events ---
+        document.getElementById('light-intensity').addEventListener('input', e => directionalLight.intensity = parseFloat(e.target.value));
+        document.getElementById('light-color').addEventListener('input', e => directionalLight.color.set(e.target.value));
+        document.getElementById('toggle-shadows').addEventListener('click', ()=>{
+            renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
+            scene.traverse(c=>{ if(c.isMesh){ c.castShadow = renderer.shadowMap.enabled; c.receiveShadow = renderer.shadowMap.enabled; }});
+        });
+
+        ['light-x','light-y','light-z'].forEach(id=>{
+            document.getElementById(id).addEventListener('input', ()=>{
+                directionalLight.position.set(
+                    parseFloat(document.getElementById('light-x').value),
+                    parseFloat(document.getElementById('light-y').value),
+                    parseFloat(document.getElementById('light-z').value)
+                );
+            });
+        });
+
+        document.getElementById('aircraft-metal').addEventListener('input', updateAircraftMaterial);
+        document.getElementById('aircraft-rough').addEventListener('input', updateAircraftMaterial);
+        function updateAircraftMaterial(){
+            if(!aircraft) return;
+            aircraft.traverse(c=>{
+                if(c.isMesh && c.material){
+                    c.material.metalness = parseFloat(document.getElementById('aircraft-metal').value);
+                    c.material.roughness = parseFloat(document.getElementById('aircraft-rough').value);
+                }
+            });
+        }
+
+        // --- Keyboard movement ---
+        const keys={};
+        window.addEventListener('keydown', e=>keys[e.key.toLowerCase()]=true);
+        window.addEventListener('keyup', e=>keys[e.key.toLowerCase()]=false);
+        function moveAircraft(){
+            if(!aircraft) return;
+            const sp=0.2;
+            if(keys['w']) aircraft.position.z -= sp;
+            if(keys['s']) aircraft.position.z += sp;
+            if(keys['a']) aircraft.position.x -= sp;
+            if(keys['d']) aircraft.position.x += sp;
+            if(keys['arrowup']) aircraft.position.y += sp;
+            if(keys['arrowdown']) aircraft.position.y -= sp;
+            if(aircraft.position.y<0) aircraft.position.y=0;
+        }
+
+        // --- Picking integration ---
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+        let pickedObjPosition = new THREE.Vector3();
+        let cameraPosition = new THREE.Vector3(0,15,25);
+
+        function setPointer(e) {
+            const r = renderer.domElement.getBoundingClientRect();
+            const x = (e.clientX ?? e.touches[0].clientX) - r.left;
+            const y = (e.clientY ?? e.touches[0].clientY) - r.top;
+            pointer.x = (x/r.width)*2-1;
+            pointer.y = -(y/r.height)*2+1;
+        }
+
+        function onPick(e) {
+            setPointer(e);
+            raycaster.setFromCamera(pointer,camera);
+            const hit = raycaster.intersectObjects(clickable,true)[0];
+            if(!hit) return;
+            pickedObjPosition.copy(hit.object.position);
+            cameraPosition.copy(hit.object.position.clone().add(new THREE.Vector3(0,5,10)));
+        }
+        renderer.domElement.addEventListener('click', onPick);
+
+        // --- Animate ---
+        function animate(){
+            requestAnimationFrame(animate);
+            moveAircraft();
+            controls.update();
+            transformControls.update();
+            controls.target.lerp(pickedObjPosition,0.05);
+            camera.position.lerp(cameraPosition,0.05);
+            renderer.render(scene,camera);
+        }
+        animate();
+
+        window.addEventListener('resize', ()=>{
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
