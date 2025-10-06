@@ -146,8 +146,10 @@
             });
         }
 
-        loadModel("https://krit127.github.io/CG/model/moon.glb", new THREE.Vector3(0,0,0), 0.05, true, "Moon");
-        loadModel("", new THREE.Vector3(5,0,-5), 1.2, false, "Building");
+        loadModel("https://krit127.github.io/CG/model/namefix3.glb ", new THREE.Vector3(0,0,0), 0.05, true, "Moon");
+        loadModel("https://krit127.github.io/CG/model/namefix3.glb", new THREE.Vector3(5,0,-5), 1.2, false, "Building");
+
+         
 
         // --- UI events ---
         document.getElementById('light-intensity').addEventListener('input', e => directionalLight.intensity = parseFloat(e.target.value));
@@ -156,6 +158,7 @@
             renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
             scene.traverse(c=>{ if(c.isMesh){ c.castShadow = renderer.shadowMap.enabled; c.receiveShadow = renderer.shadowMap.enabled; }});
         });
+        
 
         ['light-x','light-y','light-z'].forEach(id=>{
             document.getElementById(id).addEventListener('input', ()=>{
@@ -178,6 +181,9 @@
                 }
             });
         }
+
+        
+
 
         // --- Keyboard movement ---
         const keys={};

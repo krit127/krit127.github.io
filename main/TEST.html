@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8" />
+    <title>3D Scene with Controls</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: Arial, sans-serif; 
+            color: #fff; 
+        }
+        #ui-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .ui-section { 
+            border: 1px solid #444; 
+            padding: 10px; 
+            border-radius: 5px; 
+            background: rgba(30, 30, 30, 0.8);
+        }
+        .ui-section h3 { 
+            margin-top: 0; 
+            margin-bottom: 10px; 
+            font-size: 16px; 
+            color: #fff;
+        }
+        .ui-button { 
+            background-color: #555; 
+            border: none; 
+            color: white; 
+            padding: 5px 10px; 
+            cursor: pointer; 
+            border-radius: 3px; 
+            width: 100%;
+        }
+        .ui-button:hover { 
+            background-color: #777; 
+        }
+        input[type="range"] { 
+            width: 150px; 
+        }
+        label {
+            display: block;
+            margin: 5px 0;
+        }
+
+        /* กล่องข้อความมุมซ้ายบน */
+        #infoBox {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            font-family: sans-serif;
+            border-radius: 5px;
+            z-index: 100;
+        }
+        
+        /* Loading indicator */
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            z-index: 200;
+        }
+    </style>
+</head>
+<body>
+    <!-- กล่องข้อความมุมซ้ายบน -->
+    <div id="infoBox">คลิกวัตถุเพื่อดูข้อมูล</div>
+    
+    <!-- Loading indicator -->
+    <div id="loading">กำลังโหลด...</div>
+
+    <div id="ui-container">
+        <div class="ui-section">
+            <h3>ควบคุมแสง</h3>
+            <label>ความสว่าง:</label>
+            <input type="range" id="light-intensity" min="0" max="5" step="0.1" value="2"><br>
+            <label>สีแสง:</label>
+            <input type="color" id="light-color" value="#ffffff">
+        </div>
+        <div class="ui-section">
+            <h3>ตำแหน่งแสง</h3>
+            <label>X: <span id="light-x-value">10</span></label>
+            <input type="range" id="light-x" min="-50" max="50" step="0.1" value="10"><br>
+            <label>Y: <span id="light-y-value">20</span></label>
+            <input type="range" id="light-y" min="0" max="50" step="0.1" value="20"><br>
+            <label>Z: <span id="light-z-value">10</span></label>
+            <input type="range" id="light-z" min="-50" max="50" step="0.1" value="10">
+        </div>
+        <div class="ui-section">
+            <h3>เงา</h3>
+            <button id="toggle-shadows" class="ui-button">เปิด/ปิดเงา</button>
+            <button id="toggle-light-helper" class="ui-button">แสดง/ซ่อนตำแหน่งแสง</button>
+        </div>
+        <div class="ui-section">
+            <h3>Material</h3>
+            <label>Metallic: <span id="metal-value">0.5</span></label>
+            <input type="range" id="aircraft-metal" min="0" max="1" step="0.01" value="0.5"><br>
+            <label>Roughness: <span id="rough-value">0.5</span></label>
+            <input type="range" id="aircraft-rough" min="0" max="1" step="0.01" value="0.5">
+        </div>
+        <div class="ui-section">
+            <h3>ควบคุมวัตถุ</h3>
+            <button id="toggle-transform" class="ui-button">เปิด/ปิดการเคลื่อนย้ายแสง</button>
+        </div>
+    </div>
+
+    <!-- Three.js libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/pmrem/PMREMGenerator.js"></script>
+
+    <script>
+        // --- Renderer / Scene / Camera ---
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 5, 10);
+        
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // --- Environment ---
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+        
+        const exrLoader = new THREE.EXRLoader();
+        exrLoader.load(
+            "https://krit127.github.io/textures/qwantani_noon_puresky_1k.exr",
+            texture => {
+                const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+                scene.background = envMap;
+                scene.environment = envMap;
+                pmremGenerator.dispose();
+                document.getElementById('loading').style.display = 'none';
+            },
+            undefined,
+            err => {
+                console.error('EXR load error:', err);
+                scene.background = new THREE.Color(0x87CEEB);
+                document.getElementById('loading').style.display = 'none';
+            }
+        );
+
+        // --- Lights ---
+        const ambientLight = new THREE.AmbientLight(0x555555, 0.4);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -20;
+        directionalLight.shadow.camera.right = 20;
+        directionalLight.shadow.camera.top = 20;
+        directionalLight.shadow.camera.bottom = -20;
+        scene.add(directionalLight);
+
+        const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 2, 0xffff00);
+        scene.add(lightHelper);
+
+        const transformControls = new THREE.TransformControls(camera, renderer.domElement);
+        transformControls.attach(directionalLight);
+        scene.add(transformControls);
+        transformControls.addEventListener('dragging-changed', e => { 
+            controls.enabled = !e.value; 
+        });
+
+        // --- Floor ---
+        const floorTexture = new THREE.TextureLoader().load(
+            "https://krit127.github.io/textures/brick_crosswalk_diff_1k.jpg",
+            texture => {
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(8, 8);
+            }
+        );
+        
+        const floorMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(100, 100), 
+            new THREE.MeshStandardMaterial({ 
+                map: floorTexture,
+                roughness: 0.8,
+                metalness: 0.2
+            })
+        );
+        floorMesh.rotation.x = -Math.PI/2;
+        floorMesh.receiveShadow = true;
+        scene.add(floorMesh);
+
+        // --- Models ---
+        const loader = new THREE.GLTFLoader();
+        const objLoader = new THREE.OBJLoader();
+        const textureLoader = new THREE.TextureLoader();
+        
+        let aircraft;
+        const clickable = []; // สำหรับ Picking
+        const infoBox = document.getElementById('infoBox');
+        let modelsLoaded = 0;
+        const totalModels = 8;
+
+        // Function to track model loading
+        function modelLoaded() {
+            modelsLoaded++;
+            if (modelsLoaded >= totalModels) {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // Load GLTF models
+        function loadGLTFModel(url, pos, scale=1, name="Object") {
+            loader.load(url, gltf => {
+                const obj = gltf.scene;
+                obj.name = name;
+                obj.traverse(c => { 
+                    if(c.isMesh){ 
+                        c.castShadow = true; 
+                        c.receiveShadow = true; 
+                    }
+                });
+                obj.position.copy(pos);
+                obj.scale.set(scale, scale, scale);
+                scene.add(obj);
+                clickable.push(obj);
+                if (name === "Moon") aircraft = obj;
+                modelLoaded();
+            }, undefined, err => {
+                console.error(`Error loading ${name}:`, err);
+                modelLoaded();
+            });
+        }
+
+        // Load OBJ models with textures
+        function loadOBJModel(pathOBJ, textures, position = { x: 0, y: 0, z: 0 }, scale = 1, name="Object") {
+            const material = new THREE.MeshStandardMaterial({
+                map: textures.baseColor ? textureLoader.load(textures.baseColor) : null,
+                normalMap: textures.normal ? textureLoader.load(textures.normal) : null,
+                roughnessMap: textures.roughness ? textureLoader.load(textures.roughness) : null,
+                metalnessMap: textures.metalness ? textureLoader.load(textures.metalness) : null,
+                roughness: textures.roughness ? 1.0 : 0.5,
+                metalness: textures.metalness ? 0.5 : 0.0
+            });
+
+            objLoader.load(
+                pathOBJ,
+                object => {
+                    object.traverse(child => {
+                        if (child.isMesh) {
+                            child.material = material;
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+
+                    object.position.set(position.x, position.y, position.z);
+                    object.scale.set(scale, scale, scale);
+                    object.name = name;
+                    scene.add(object);
+                    clickable.push(object);
+                    modelLoaded();
+                },
+                undefined,
+                error => {
+                    console.error(`Error loading ${name}:`, error);
+                    modelLoaded();
+                }
+            );
+        }
+
+        // Load models
+        loadGLTFModel("https://krit127.github.io/CG/model/moon.glb", new THREE.Vector3(0, 2, 0), 0.05, "Moon");
+        
+        // Load tree parts
+        loadOBJModel(
+            '',
+            { 
+                baseColor: '',
+                normal: ''
+            },
+            { x: 5, y: 0, z: 5 },
+            1,
+            "Tree Trunk"
+        );
+
+        loadOBJModel(
+            '',
+            { 
+                baseColor: ''
+            },
+            { x: 5, y: 2.5, z: 5 },
+            1,
+            "Tree Leaves"
+        );
+
+        // Load stairs
+        loadOBJModel(
+            '',
+            { 
+                baseColor: '',
+                metalness: ''
+            },
+            { x: -3, y: 0, z: 0 },
+            1,
+            "Stairs"
+        );
+
+        // Load name
+        loadOBJModel(
+            '',
+            { 
+                baseColor: 'https://img.freepik.com/free-vector/blue-abstract-background_53876-88663.jpg'
+            },
+            { x: 0, y: 3, z: -5 },
+            0.5,
+            "Name"
+        );
+
+        // Load profile frame
+        loadOBJModel(
+            ' ',
+            { 
+                baseColor: ''
+            },
+            { x: -4, y: 2, z: -3 },
+            0.3,
+            "Profile"
+        );
+
+        // Load logo frame and logo
+        loadOBJModel(
+            '',
+            { 
+                baseColor: 'https://img.freepik.com/free-vector/gold-elegant-frame-background_52683-54315.jpg'
+            },
+            { x: 4, y: 2, z: -3 },
+            0.3,
+            "Logo Frame"
+        );
+
+        loadOBJModel(
+            'https://chotika47.github.io/ComGraph_Final/thLogoImg.obj',
+            { 
+                baseColor: 'https://chotika47.github.io/ComGraph_Final/KU_Symbol_Thai.jpg'
+            },
+            { x: 4, y: 2, z: -3 },
+            0.25,
+            "KU Logo"
+        );
+
+        // --- UI events ---
+        document.getElementById('light-intensity').addEventListener('input', e => {
+            directionalLight.intensity = parseFloat(e.target.value);
+        });
+        
+        document.getElementById('light-color').addEventListener('input', e => {
+            directionalLight.color.set(e.target.value);
+        });
+        
+        document.getElementById('toggle-shadows').addEventListener('click', () => {
+            renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
+            scene.traverse(c => { 
+                if(c.isMesh){ 
+                    c.castShadow = renderer.shadowMap.enabled; 
+                    c.receiveShadow = renderer.shadowMap.enabled; 
+                }
+            });
+        });
+        
+        document.getElementById('toggle-light-helper').addEventListener('click', () => {
+            lightHelper.visible = !lightHelper.visible;
+        });
+        
+        document.getElementById('toggle-transform').addEventListener('click', () => {
+            transformControls.enabled = !transformControls.enabled;
+            if (!transformControls.enabled) {
+                transformControls.detach();
+            } else {
+                transformControls.attach(directionalLight);
+            }
+        });
+
+        // Light position sliders
+        ['light-x','light-y','light-z'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                directionalLight.position.set(
+                    parseFloat(document.getElementById('light-x').value),
+                    parseFloat(document.getElementById('light-y').value),
+                    parseFloat(document.getElementById('light-z').value)
+                );
+                // Update value displays
+                document.getElementById('light-x-value').textContent = document.getElementById('light-x').value;
+                document.getElementById('light-y-value').textContent = document.getElementById('light-y').value;
+                document.getElementById('light-z-value').textContent = document.getElementById('light-z').value;
+            });
+        });
+
+        // Material controls
+        document.getElementById('aircraft-metal').addEventListener('input', updateAircraftMaterial);
+        document.getElementById('aircraft-rough').addEventListener('input', updateAircraftMaterial);
+        
+        function updateAircraftMaterial(){
+            if(!aircraft) return;
+            aircraft.traverse(c => {
+                if(c.isMesh && c.material){
+                    c.material.metalness = parseFloat(document.getElementById('aircraft-metal').value);
+                    c.material.roughness = parseFloat(document.getElementById('aircraft-rough').value);
+                }
+            });
+            // Update value displays
+            document.getElementById('metal-value').textContent = document.getElementById('aircraft-metal').value;
+            document.getElementById('rough-value').textContent = document.getElementById('aircraft-rough').value;
+        }
+
+        // --- Picking integration ---
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+        let pickedObjPosition = new THREE.Vector3();
+        let cameraPosition = new THREE.Vector3(0, 5, 10);
+
+        function setPointer(e) {
+            const r = renderer.domElement.getBoundingClientRect();
+            const x = (e.clientX ?? e.touches[0].clientX) - r.left;
+            const y = (e.clientY ?? e.touches[0].clientY) - r.top;
+            pointer.x = (x/r.width)*2-1;
+            pointer.y = -(y/r.height)*2+1;
+        }
+
+        function onPick(e) {
+            setPointer(e);
+            raycaster.setFromCamera(pointer, camera);
+            const hits = raycaster.intersectObjects(clickable, true);
+            if(hits.length === 0) return;
+            
+            const hit = hits[0];
+            pickedObjPosition.copy(hit.point);
+            cameraPosition.copy(hit.point.clone().add(new THREE.Vector3(0, 2, 5)));
+            
+            const objectName = hit.object.name || hit.object.parent?.name || 'Unknown';
+            infoBox.textContent = `คุณเลือก: ${objectName}`;
+            
+            // Highlight selected object
+            scene.traverse(obj => {
+                if (obj.isMesh) {
+                    obj.material.emissive = new THREE.Color(0x000000);
+                }
+            });
+            
+            if (hit.object.isMesh) {
+                hit.object.material.emissive = new THREE.Color(0x333300);
+            }
+        }
+        
+        renderer.domElement.addEventListener('click', onPick);
+
+        // --- Animate ---
+        function animate(){
+            requestAnimationFrame(animate);
+            controls.update();
+            transformControls.update();
+            
+            // Smooth camera movement to selected object
+            controls.target.lerp(pickedObjPosition, 0.05);
+            camera.position.lerp(cameraPosition, 0.05);
+            
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
