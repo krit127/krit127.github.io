@@ -152,7 +152,7 @@
         }
         
         loadModel("https://krit127.github.io/CG/model/pic3.glb", new THREE.Vector3(5,0,0), 0.5, true, "picture");
-        loadModel("https://krit127.github.io/CG/model/moon.glb ", new THREE.Vector3(0,10,10), 0.05, false, "Moon");
+        loadModel("https://krit127.github.io/CG/model/moon.glb ", new THREE.Vector3(0,20,0), 0.05, false, "Moon");
         loadModel("https://krit127.github.io/CG/model/namefix4.glb", new THREE.Vector3(0,0,0), 1.2, true, "Building");
         
         // โหลดไฟล์ limbus และเปิดใช้งานแอนิเมชันจากไฟล์นั้น
@@ -160,7 +160,7 @@
             const obj = gltf.scene;
             obj.name = "Limbus";
             obj.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }});
-            obj.position.set(5,0,0);
+            obj.position.set(5,1,10);
             obj.scale.set(1,1,1);
             scene.add(obj);
             clickable.push(obj);
