@@ -78,6 +78,11 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
 
     <script>
+
+        let mixer;
+        const clock = new THREE.Clock();
+        let model = null;
+
         // --- Renderer / Scene / Camera ---
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -145,10 +150,32 @@
                 if(isAircraft) aircraft=obj; else building=obj;
             });
         }
-        loadModel("https://krit127.github.io/CG/model/limbus_company_steam_transport_machine.glb", new THREE.Vector3(5,0,0), 1, false, "model");
+        
         loadModel("https://krit127.github.io/CG/model/aircraft.glb", new THREE.Vector3(0,0,0), 0.5, true, "picture");
         loadModel("https://krit127.github.io/CG/model/moon.glb ", new THREE.Vector3(0,0,0), 0.05, false, "Moon");
         loadModel("https://krit127.github.io/CG/model/namefix4.glb", new THREE.Vector3(0,0,0), 1.2, true, "Building");
+        
+        // โหลดไฟล์ limbus และเปิดใช้งานแอนิเมชันจากไฟล์นั้น
+        loader.load("https://krit127.github.io/CG/model/limbus_company_steam_transport_machine.glb", (gltf)=>{
+            const obj = gltf.scene;
+            obj.name = "Limbus";
+            obj.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }});
+            obj.position.set(5,0,0);
+            obj.scale.set(1,1,1);
+            scene.add(obj);
+            clickable.push(obj);
+            model = obj;
+
+            // ถ้ามี animations ให้สร้าง mixer และเล่นคลิปทั้งหมด (หรือเลือกคลิปที่ต้องการ)
+            if (gltf.animations && gltf.animations.length > 0) {
+                mixer = new THREE.AnimationMixer(obj);
+                gltf.animations.forEach((clip) => {
+                    const action = mixer.clipAction(clip);
+                    action.reset();
+                    action.play();
+                });
+            }
+        });
 
          
 
@@ -230,6 +257,8 @@
         // --- Animate ---
         function animate(){
             requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
             moveAircraft();
             controls.update();
             transformControls.update();
