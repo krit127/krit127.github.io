@@ -115,8 +115,7 @@
         directionalLight.castShadow = true;
         scene.add(directionalLight);
 
-        const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 2, 0xffff00);
-        scene.add(lightHelper);
+        
 
         const transformControls = new THREE.TransformControls(camera, renderer.domElement);
         transformControls.attach(directionalLight);
