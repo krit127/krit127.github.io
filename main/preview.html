@@ -251,6 +251,11 @@
             pickedObjPosition.copy(hit.object.position);
             cameraPosition.copy(hit.object.position.clone().add(new THREE.Vector3(0,5,10)));
             infoBox.textContent = `คุณเลือก: ${hit.object.name || hit.object.parent.name || 'Unknown'}`;
+            infoBox.style.backgroundColor = 'rgba(0, 0, 0, 0.8)'; // เปลี่ยนสีพื้นหลังเมื่อมีการเลือก
+            infoBox.style.padding = '8px 12px';
+            infoBox.textContent = `นี้คือนายกฤต สัตยคฤหกุล
+                                21/2 หมู่ 7 ต.ท่าไม้  อ.ท่ามะกา จ.กาญจนบุรี 71120
+                        'Unknown'}`;
         }
         renderer.domElement.addEventListener('click', onPick);
 
